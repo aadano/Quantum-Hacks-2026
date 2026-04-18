@@ -58,6 +58,12 @@ Speedup: 1.5x fewer steps
 
 ---
 
+## Circuit Diagram
+
+![Grover Circuit](circuit.svg)
+
+---
+
 ## How Grover's Algorithm Works
 
 1. **Superposition** — Hadamard gates put all 1024 patient indices into equal superposition simultaneously
