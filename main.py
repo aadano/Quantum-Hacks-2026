@@ -40,7 +40,14 @@ if __name__ == "__main__":
 
     # Grover measurement histogram
     if counts:
-        fig = plot_histogram(counts, title=f"Grover Search: DNA Target '{target_codon}'")
+        readable_counts = {f"Patient {int(k, 2)}": v for k, v in counts.items()}
+        fig, ax = plt.subplots(figsize=(12, 5))
+        ax.bar(readable_counts.keys(), readable_counts.values(), color="darkorange")
+        ax.set_xlabel("Patient")
+        ax.set_ylabel("Measurement Count")
+        ax.set_title(f"Grover Search: DNA Target '{target_codon}'")
+        plt.xticks(rotation=45, ha="right")
+        plt.tight_layout()
         fig.savefig("grover_dna_histogram.png")
         print("Saved: grover_dna_histogram.png")
 
