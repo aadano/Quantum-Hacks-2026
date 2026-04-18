@@ -38,7 +38,11 @@ if __name__ == "__main__":
     print(f"Quantum:   found patient {found_quantum} in {num_iterations} iterations, {quantum_time:.8f}s")
     print(f"Speedup: {classical_steps / num_iterations:.1f}x fewer steps\n")
 
-    # Visual 1: Grover measurement histogram
+    # Visual 1: circuit diagram
+    qc.draw(output="mpl", filename="circuit.png", style={"figwidth": 60})
+    print("Saved: circuit.png")
+
+    # Visual 2: Grover measurement histogram
     fig = plot_histogram(counts, title=f"Grover Search — Mutated Patient {TARGET_PATIENT}")
     fig.savefig("grover_patient_histogram.png")
     print("Saved: grover_patient_histogram.png")
