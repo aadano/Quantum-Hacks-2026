@@ -1,65 +1,63 @@
-# pip install qiskit qiskit-aer matplotlib numpy pylatexenc
-
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from qiskit import transpile
-from qiskit_aer import AerSimulator
 from qiskit.visualization import plot_histogram
 
-from grover_dna_search import (
-    generate_patients,
-    build_grover_circuit,
-    classical_search,
-    TARGET_PATIENT,
-    NUM_QUBITS,
-    NUM_PATIENTS,
+from grover_patient_search import (
+    load_patients,
+    run_classical_search,
+    run_grover_search,
+    DEFAULT_TARGET_CODON,
+    PATIENTS_FILE
 )
 
 if __name__ == "__main__":
-    patients = generate_patients()
+    patients = load_patients(PATIENTS_FILE)
+    target_codon = DEFAULT_TARGET_CODON
+    num_patients = len(patients)
 
     # Classical search
     t0 = time.time()
-    found_classical, classical_steps = classical_search(patients)
-    classical_time = time.time() - t0
-    print(f"Classical: found patient {found_classical} in {classical_steps} steps, {classical_time:.8f}s")
+    unhealthy_classical, classical_time = run_classical_search(patients, target_codon)
+    classical_steps = num_patients
+    print(f"Classical: found {len(unhealthy_classical)} patients in {classical_time:.8f}s")
 
     # Quantum search
-    qc, num_iterations = build_grover_circuit(TARGET_PATIENT, NUM_QUBITS)
-    simulator = AerSimulator()
-    compiled = transpile(qc, simulator)
-    t0 = time.time()
-    result = simulator.run(compiled, shots=1024).result()
-    quantum_time = time.time() - t0
-    counts = result.get_counts()
-    top_state = max(counts, key=counts.get)
-    found_quantum = int(top_state, 2)
-    print(f"Quantum:   found patient {found_quantum} in {num_iterations} iterations, {quantum_time:.8f}s")
-    print(f"Speedup: {classical_steps / num_iterations:.1f}x fewer steps\n")
+    grover_result = run_grover_search(patients, target_codon)
+    counts = grover_result["counts"]
+    num_iterations = grover_result["iterations"]
+    quantum_time = grover_result["quantum_time"]
+    qc = grover_result["circuit"]
 
-    # Visual 1: circuit diagram
-    qc.draw(output="mpl", filename="circuit.png", style={"figwidth": 60})
-    print("Saved: circuit.png")
+    print(f"Quantum:   found {len(grover_result['measured_unhealthy_patients'])} patients in {num_iterations} iterations, {quantum_time:.8f}s")
+    if num_iterations > 0:
+        print(f"Speedup: {classical_steps / num_iterations:.1f}x fewer steps\n")
 
-    # Visual 2: Grover measurement histogram
-    fig = plot_histogram(counts, title=f"Grover Search — Mutated Patient {TARGET_PATIENT}")
-    fig.savefig("grover_patient_histogram.png")
-    print("Saved: grover_patient_histogram.png")
+    # Circuit diagram
+    if qc is not None:
+        qc.draw(output="mpl", filename="circuit.png", style={"figwidth": 60})
+        print("Saved: circuit.png")
 
-    # Visual 2: steps comparison bar chart
+    # Grover measurement histogram
+    if counts:
+        fig = plot_histogram(counts, title=f"Grover Search: DNA Target '{target_codon}'")
+        fig.savefig("grover_dna_histogram.png")
+        print("Saved: grover_dna_histogram.png")
+
+    # Steps comparison bar chart
+    if num_iterations > 0:
+        plt.figure()
+        plt.bar(["Classical", "Quantum"], [classical_steps, num_iterations], color=["steelblue", "darkorange"])
+        plt.ylabel("Steps / Iterations")
+        plt.title(f"Search Steps: {num_patients} Patients")
+        plt.savefig("steps_comparison.png")
+        print("Saved: steps_comparison.png")
+
+    # Complexity scaling chart
+    N_vals = np.arange(1, 2000)
     plt.figure()
-    plt.bar(["Classical", "Quantum"], [classical_steps, num_iterations], color=["steelblue", "darkorange"])
-    plt.ylabel("Steps / Iterations")
-    plt.title(f"Search Steps: {NUM_PATIENTS} Patients")
-    plt.savefig("steps_comparison.png")
-    print("Saved: steps_comparison.png")
-
-    # Visual 3: complexity scaling chart
-    N = np.arange(1, 2000)
-    plt.figure()
-    plt.plot(N, N, label="Classical O(N)", color="steelblue")
-    plt.plot(N, np.sqrt(N), label="Quantum O(√N)", color="darkorange")
+    plt.plot(N_vals, N_vals, label="Classical O(N)", color="steelblue")
+    plt.plot(N_vals, np.sqrt(N_vals), label="Quantum O(√N)", color="darkorange")
     plt.xlabel("Database Size (N)")
     plt.ylabel("Steps")
     plt.title("Classical vs Quantum Search Complexity")
