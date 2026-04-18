@@ -37,6 +37,7 @@ if __name__ == "__main__":
     if qc is not None:
         fig = qc.draw(output="mpl", fold=20, style={"backgroundcolor": "#FFFFFF"})
         fig.savefig("circuit.png", dpi=150, bbox_inches="tight")
+        fig.savefig("circuit.svg", bbox_inches="tight")
         print("Saved: circuit.png")
 
     # Grover measurement histogram
