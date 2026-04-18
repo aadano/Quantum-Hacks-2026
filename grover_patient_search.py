@@ -2,7 +2,7 @@ import argparse
 import math
 import time
 from dataclasses import dataclass
-from Classical_search import linear_search
+from Classical_Search import linear_search
 
 
 PATIENTS_FILE = "patients.txt"
@@ -208,13 +208,13 @@ def run_grover_search(patients, target_codon, codon_index=None, shots=DEFAULT_SH
 
 
 def run_classical_search(patients, target_codon, codon_index=None):
-    unhealthy_classical= 0
-    classic_runtime=0
+    unhealthy_classical = []
+    classic_runtime = 0
     for patient in patients:
-        unhealthy ,steps, runTime= linear_search(patient, target_codon)
+        unhealthy, steps, runTime = linear_search(patient.dna, target_codon)
         if unhealthy == True:
-            unhealthy_classical+=1
-            total_runtime+= runTime
+            unhealthy_classical.append(patient.name)
+            classic_runtime += runTime
     return unhealthy_classical, classic_runtime
 
     
