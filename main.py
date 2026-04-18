@@ -1,45 +1,69 @@
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from qiskit.visualization import plot_histogram
 
-from grover_patient_search import run_grover_search, build_grover_circuit
-from Classical_search import linear_search
-
-
+from grover_patient_search import (
+    load_patients,
+    run_classical_search,
+    run_grover_search,
+    DEFAULT_TARGET_CODON,
+    PATIENTS_FILE
+)
 
 if __name__ == "__main__":
+    patients = load_patients(PATIENTS_FILE)
+    target_codon = DEFAULT_TARGET_CODON
+    num_patients = len(patients)
+
     # Classical search
-    position, steps, classical_time = linear_search("ATCGGCTA", "TA")
-    print(f"Classical: found 'TA' at position {position} in {steps} steps, {classical_time:.8f}s")
+    t0 = time.time()
+    unhealthy_classical, classical_time = run_classical_search(patients, target_codon)
+    classical_steps = num_patients  # We swept all patients
+    print(f"Classical: found {len(unhealthy_classical)} patients in {classical_time:.8f}s")
 
     # Quantum search
-    counts, quantum_time, top_state, found_sequence = run_grover_search()
-    print(f"Quantum:   found '{found_sequence}' (|{top_state}>) in 1 step, {quantum_time:.8f}s")
-
+    grover_result = run_grover_search(patients, target_codon)
+    counts = grover_result["counts"]
+    num_iterations = grover_result["iterations"]
+    quantum_time = grover_result["quantum_time"]
+    qc = grover_result["circuit"]
+    
+    print(f"Quantum:   found {len(grover_result['measured_unhealthy_patients'])} patients in {num_iterations} iterations, {quantum_time:.8f}s")
+    if num_iterations > 0:
+        print(f"Speedup: {classical_steps / num_iterations:.1f}x fewer steps\n")
+    
     # Circuit diagram
-    qc = build_grover_circuit()
-    qc.draw(output="mpl", filename="circuit.png")
+    if qc is not None:
+        qc.draw(output="mpl", filename="circuit.png")
+        print("Saved: circuit.png")
 
-    # Grover histogram
-    fig = plot_histogram(counts, title="Grover Search: DNA Target 'TA'")
-    fig.savefig("grover_dna_histogram.png")
+    # Visual 1: Grover measurement histogram
+    if counts:
+        fig = plot_histogram(counts, title=f"Grover Search: DNA Target '{target_codon}'")
+        fig.savefig("grover_dna_histogram.png")
+        print("Saved: grover_dna_histogram.png")
 
-    # Steps comparison
+    # Visual 2: steps comparison bar chart
+    if num_iterations > 0:
+        plt.figure()
+        plt.bar(["Classical", "Quantum"], [classical_steps, num_iterations], color=["steelblue", "darkorange"])
+        plt.ylabel("Steps / Iterations")
+        plt.title(f"Search Steps: {num_patients} Patients")
+        plt.savefig("steps_comparison.png")
+        print("Saved: steps_comparison.png")
+
+    # Visual 3: complexity scaling chart
+    N_vals = np.arange(1, 2000)
     plt.figure()
-    plt.bar(["Classical", "Quantum"], [steps, 1])
-    plt.ylabel("Steps to find target")
-    plt.title("Search Steps Comparison")
-    plt.savefig("steps_comparison.png")
-
-    # Complexity scaling
-    N = np.arange(1, 1001)
-    plt.figure()
-    plt.plot(N, N, label="Classical O(N)")
-    plt.plot(N, np.sqrt(N), label="Quantum O(√N)")
+    plt.plot(N_vals, N_vals, label="Classical O(N)", color="steelblue")
+    plt.plot(N_vals, np.sqrt(N_vals), label="Quantum O(√N)", color="darkorange")
     plt.xlabel("Database Size (N)")
     plt.ylabel("Steps")
-    plt.title("Classical vs Quantum Complexity")
+    plt.title("Classical vs Quantum Search Complexity")
     plt.legend()
     plt.savefig("complexity_comparison.png")
+    print("Saved: complexity_comparison.png")
 
+    # Only pop up the plot window at the very end
     plt.show()
