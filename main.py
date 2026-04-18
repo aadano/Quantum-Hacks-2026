@@ -18,12 +18,12 @@ if __name__ == "__main__":
 
     # Classical search
     t0 = time.time()
-    unhealthy_classical, classical_time = run_classical_search(patients, target_codon)
+    unhealthy_classical, classical_time = run_classical_search(patients, target_codon, codon_index=0)
     classical_steps = num_patients
     print(f"Classical: found {len(unhealthy_classical)} patients in {classical_time:.8f}s")
 
     # Quantum search
-    grover_result = run_grover_search(patients, target_codon)
+    grover_result = run_grover_search(patients, target_codon, codon_index=0)
     counts = grover_result["counts"]
     num_iterations = grover_result["iterations"]
     quantum_time = grover_result["quantum_time"]
