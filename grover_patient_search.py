@@ -4,86 +4,20 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 import argparse
 import math
 import time
-from dataclasses import dataclass
+
 from Classical_Search import linear_search
+from patient_utils import (
+    PATIENTS_FILE,
+    DEFAULT_OUTPUT_FILE,
+    normalize_codon,
+    load_patients,
+    patient_has_codon,
+    find_matching_patient_indices,
+    save_patient_names,
+)
 
-
-PATIENTS_FILE = "patients.txt"
-DEFAULT_OUTPUT_FILE = "unhealthy_patients.txt"
 DEFAULT_TARGET_CODON = "CGA"
 DEFAULT_SHOTS = 2048
-
-
-@dataclass(frozen=True)
-class Patient:
-    name: str
-    dna: str
-
-
-def normalize_codon(codon):
-    """Validate and normalize a codon like 'cga' -> 'CGA'."""
-    normalized = codon.strip().upper()
-    if len(normalized) != 3:
-        raise ValueError("Target codon must be exactly 3 DNA bases.")
-    invalid_bases = sorted(set(normalized) - set("ATCG"))
-    if invalid_bases:
-        raise ValueError(f"Target codon has invalid DNA bases: {', '.join(invalid_bases)}")
-    return normalized
-
-
-def load_patients(path=PATIENTS_FILE):
-    """Read patients from lines like: Patient 00000  ->  ACTG..."""
-    patients = []
-
-    with open(path, "r", encoding="utf-8") as file:
-        for line_number, line in enumerate(file, start=1):
-            line = line.strip()
-            if not line:
-                continue
-
-            if "→" in line:
-                name, dna = line.split("→", 1)
-            elif "->" in line:
-                name, dna = line.split("->", 1)
-            else:
-                raise ValueError(f"Line {line_number} is missing a patient/DNA separator.")
-
-            name = name.strip()
-            dna = dna.strip().upper()
-            if len(dna) % 3 != 0:
-                raise ValueError(f"{name} has DNA length {len(dna)}, which is not divisible by 3.")
-            if set(dna) - set("ATCG"):
-                raise ValueError(f"{name} has invalid DNA bases.")
-
-            patients.append(Patient(name=name, dna=dna))
-
-    if not patients:
-        raise ValueError(f"No patients found in {path}.")
-
-    return patients
-
-
-def patient_has_codon(patient, target_codon, codon_index=None):
-    """
-    Return True if a patient has the target codon.
-
-    If codon_index is None, search every codon in the DNA string.
-    If codon_index is an integer, only check that codon position.
-    """
-    if codon_index is not None:
-        start = codon_index * 3
-        end = start + 3
-        return patient.dna[start:end] == target_codon
-
-    return any(patient.dna[i : i + 3] == target_codon for i in range(0, len(patient.dna), 3))
-
-
-def find_matching_patient_indices(patients, target_codon, codon_index=None):
-    return [
-        index
-        for index, patient in enumerate(patients)
-        if patient_has_codon(patient, target_codon, codon_index)
-    ]
 
 
 def next_power_of_two(value):
@@ -97,7 +31,6 @@ def grover_iteration_count(search_size, match_count):
 
 
 def apply_diffuser(circuit, qubits):
-    """Apply the standard Grover diffuser to all index qubits."""
     circuit.h(qubits)
     circuit.x(qubits)
     circuit.h(qubits[-1])
@@ -108,13 +41,6 @@ def apply_diffuser(circuit, qubits):
 
 
 def build_grover_circuit(patient_count, marked_indices, iterations=None):
-    """
-    Build a Grover circuit that searches patient indices.
-
-    The oracle is created from marked_indices. In a real quantum system, this is
-    the mutation-checking oracle; in this simulator, we encode it as a phase
-    diagonal so the circuit can mark exactly the matching patient indices.
-    """
     try:
         from qiskit import QuantumCircuit
         from qiskit.circuit.library import DiagonalGate
@@ -149,12 +75,6 @@ def build_grover_circuit(patient_count, marked_indices, iterations=None):
 
 
 def run_grover_search(patients, target_codon, codon_index=None, shots=DEFAULT_SHOTS):
-    """
-    Run Grover's algorithm and return the measured unhealthy patient names.
-
-    This returns every measured patient whose DNA actually contains the target
-    codon, so repeated measurements collapse down to a clean Python list.
-    """
     marked_indices = find_matching_patient_indices(patients, target_codon, codon_index)
     exact_unhealthy_patients = [patients[index].name for index in marked_indices]
     if not marked_indices:
@@ -214,19 +134,11 @@ def run_classical_search(patients, target_codon, codon_index=None):
     unhealthy_classical = []
     classic_runtime = 0
     for patient in patients:
-        unhealthy, steps, runTime = linear_search(patient.dna, target_codon)
-        if unhealthy == True:
+        found, _, run_time = linear_search(patient.dna, target_codon)
+        if found:
             unhealthy_classical.append(patient.name)
-            classic_runtime += runTime
+            classic_runtime += run_time
     return unhealthy_classical, classic_runtime
-
-    
-
-
-def save_patient_names(patient_names, path=DEFAULT_OUTPUT_FILE):
-    with open(path, "w", encoding="utf-8") as file:
-        for name in patient_names:
-            file.write(f"{name}\n")
 
 
 def parse_args():

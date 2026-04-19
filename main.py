@@ -6,13 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from qiskit.visualization import plot_histogram
 
-from grover_patient_search import (
-    load_patients,
-    run_classical_search,
-    run_grover_search,
-    DEFAULT_TARGET_CODON,
-    PATIENTS_FILE
-)
+from patient_utils import load_patients, PATIENTS_FILE
+from grover_patient_search import run_classical_search, run_grover_search, DEFAULT_TARGET_CODON
 
 if __name__ == "__main__":
     patients = load_patients(PATIENTS_FILE)
